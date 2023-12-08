@@ -905,14 +905,16 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
     pgoff_t block_addr;
     int nat_entry_off;
     struct f2fs_nat_entry* cur_nat_entry;
-    struct f2fs_inode* cur_inode;
+    struct f2fs_node* cur_node;
     int seg_off;
 
     nat_block = malloc(BLOCK_SZ);
     ASSERT(nat_block);
 
-    cur_inode = malloc(BLOCK_SZ);
-    ASSERT(cur_inode);
+    cur_node = malloc(BLOCK_SZ);
+    ASSERT(cur_node);
+
+
     //找到最大的inode号
     for(nid = nm_i->max_nid - 1; nid >= 0;){
         //计算该inode在nat表中对应的块号
@@ -925,7 +927,7 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
         block_addr = (pgoff_t)(old_nat_blkaddr +
                                (seg_off << sbi->log_blocks_per_seg << 1) +
                                (block_off & ((1 << sbi->log_blocks_per_seg) - 1)));
-        //清空这个nat条目
+        //判断哪一个nat生效
         if(f2fs_test_bit(block_off, nm_i->nat_bitmap)){
             block_addr += sbi->blocks_per_seg;
             f2fs_clear_bit(block_off, nm_i->nat_bitmap);
@@ -936,16 +938,24 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
         while(nat_entry_off >= 0) {
             cur_nat_entry = (struct f2fs_nat_entry *) (nat_block + sizeof(struct f2fs_nat_entry) * nat_entry_off);
             if (cur_nat_entry->block_addr != 0 && nid >= 3) {
-                ret = dev_read_block(cur_inode, cur_nat_entry->block_addr);
+                ret = dev_read_block(cur_node, cur_nat_entry->block_addr);
                 ASSERT(ret >= 0);
-                //要判断现在取出来的cur_inode是什么类型的数据块
-                for(inode_addr = 0; inode_addr < ADDRS_PER_INODE(cur_inode); inode_addr++){
-                    if(cur_inode->i_addr[inode_addr] == 0){
-                        break;
+                //判断是什么类型的inode
+                //是inode
+                if(cur_node->footer.ino == cur_node->footer.nid){
+                    //如果不是inline数据类型的数据node，i_addrblk需要修改
+                    for(inode_addr = 0; inode_addr < ADDRS_PER_INODE(cur_node); inode_addr++){
+                        if(cur_node->i.i_addr[inode_addr] == 0){
+                            continue;
+                        }
+                        cur_node->i.i_addr[inode_addr] = cur_node->i.i_addr[inode_addr] - offset;
                     }
-                    cur_inode->i_addr[inode_addr] = cur_inode->i_addr[inode_addr] - offset;
                 }
-                ret = write_inode(cur_inode, cur_nat_entry->block_addr);
+                    //是direct node或者indirect node
+                else{
+
+                }
+                ret = write_inode(cur_node, cur_nat_entry->block_addr);
                 ASSERT(ret >= 0);
                 cur_nat_entry->block_addr = cur_nat_entry->block_addr - offset;
             }
@@ -983,6 +993,7 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
         DBG(3, "Write NAT: %lx\n", block_addr);
     }
     free(nat_block);
+    free(cur_node);
     DBG(0, "Info: Done to migrate NAT blocks: nat_blkaddr = 0x%x -> 0x%x\n",
         old_nat_blkaddr, new_nat_blkaddr);
 }
@@ -1147,10 +1158,10 @@ static void rebuild_checkpoint_head(struct f2fs_sb_info *sbi,
 
     memcpy(new_cp, cp, (unsigned char *)cp->sit_nat_version_bitmap -
                        (unsigned char *)cp);
-    if (c.safe_resize)
-        memcpy((void *)new_cp + CP_BITMAP_OFFSET,
-               (void *)cp + CP_BITMAP_OFFSET,
-               F2FS_BLKSIZE - CP_BITMAP_OFFSET);
+//    if (c.safe_resize)
+//        memcpy((void *)new_cp + CP_BITMAP_OFFSET,
+//               (void *)cp + CP_BITMAP_OFFSET,
+//               F2FS_BLKSIZE - CP_BITMAP_OFFSET);
 
     new_cp->checkpoint_ver = cpu_to_le64(cp_ver + 1);
 
