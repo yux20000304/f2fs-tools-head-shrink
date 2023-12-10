@@ -943,12 +943,20 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
                 //判断是什么类型的inode
                 //是inode
                 if(cur_node->footer.ino == cur_node->footer.nid){
-                    //如果不是inline数据类型的数据node，i_addrblk需要修改
-                    for(inode_addr = 0; inode_addr < ADDRS_PER_INODE(cur_node); inode_addr++){
-                        if(cur_node->i.i_addr[inode_addr] == 0){
-                            continue;
+                    if(cur_node->i.i_inline & F2FS_INLINE_DENTRY){
+
+                    }
+                    else if(cur_node->i.i_inline & F2FS_INLINE_DATA){
+
+                    }
+                    else {
+                        //如果不是inline数据类型的数据node，i_addrblk需要修改
+                        for (inode_addr = 0; inode_addr < ADDRS_PER_INODE(cur_node); inode_addr++) {
+                            if (cur_node->i.i_addr[inode_addr] == 0) {
+                                continue;
+                            }
+                            cur_node->i.i_addr[inode_addr] = cur_node->i.i_addr[inode_addr] - offset;
                         }
-                        cur_node->i.i_addr[inode_addr] = cur_node->i.i_addr[inode_addr] - offset;
                     }
                 }
                     //是direct node或者indirect node
