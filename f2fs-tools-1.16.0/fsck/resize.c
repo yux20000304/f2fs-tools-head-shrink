@@ -1014,107 +1014,127 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
     }
 
     //最先处理dindirect node
-    for(idx = 0; idx < nm_i->max_nid; idx++){
+    for(nid = nm_i->max_nid - 1; nid >= 4;){
         //计算该inode在nat表中对应的块号
-        block_off = idx / NAT_ENTRY_PER_BLOCK;
+        block_off = nid / NAT_ENTRY_PER_BLOCK;
         //计算inode所在的segment号
         seg_off = block_off >> sbi->log_blocks_per_seg;
         //计算实际的enrty号
-        nat_entry_off = idx % NAT_ENTRY_PER_BLOCK;
+        nat_entry_off = nid % NAT_ENTRY_PER_BLOCK;
         //获取实际的设备块号
         block_addr = (pgoff_t) (new_nat_blkaddr +
                                 (seg_off << sbi->log_blocks_per_seg << 1) +
                                 (block_off & ((1 << sbi->log_blocks_per_seg) - 1)));
-        //读取dindirect node信息
-        ret = dev_read_block(nat_block, block_addr);
-        ASSERT(ret >= 0);
-        for(idx_entry = 0; idx_entry < NAT_ENTRY_PER_BLOCK; idx_entry++) {
-            if (dindirect_node_bitmap[idx]) {
-                cur_nat_entry = (struct f2fs_nat_entry *) (nat_block + sizeof(struct f2fs_nat_entry) * nat_entry_off);
-                if (cur_nat_entry->block_addr != 0 && nid >= 3) {
+        //判断该nid是否为dindirect node
+        if(dindirect_node_bitmap[nid]){
+            //读取dindirect node信息
+            ret = dev_read_block(nat_block, block_addr);
+            ASSERT(ret >= 0);
+            while(nat_entry_off >= 0 && nid >= 4){
+                //如果是dindirect node
+                if(dindirect_node_bitmap[nid]) {
+                    cur_nat_entry = (struct f2fs_nat_entry *) (nat_block +
+                                                               sizeof(struct f2fs_nat_entry) * nat_entry_off);
                     ret = dev_read_block(cur_node, cur_nat_entry->block_addr + offset);
                     ASSERT(ret >= 0);
-                    //获取dindirect node的inode信息
-                    for(int idx1 = 0; idx1 < NIDS_PER_BLOCK; idx1++){
+                    for (int idx1 = 0; idx1 < NIDS_PER_BLOCK; idx1++) {
                         //更新indirect node bitmap信息
-                        if(cur_node->in.nid[idx1]){
+                        if (cur_node->in.nid[idx1]) {
                             indirect_node_bitmap[cur_node->in.nid[idx1]] = true;
                         }
                     }
                 }
+                nat_entry_off--;
+                nid--;
             }
-            idx++;
+        }
+        else{
+            nid--;
         }
     }
 
     //随后处理indirect node
-    for(idx = 0; idx < nm_i->max_nid; idx++){
+    for(nid = nm_i->max_nid - 1; nid >= 4;){
         //计算该inode在nat表中对应的块号
-        block_off = idx / NAT_ENTRY_PER_BLOCK;
+        block_off = nid / NAT_ENTRY_PER_BLOCK;
         //计算inode所在的segment号
         seg_off = block_off >> sbi->log_blocks_per_seg;
         //计算实际的enrty号
-        nat_entry_off = idx % NAT_ENTRY_PER_BLOCK;
+        nat_entry_off = nid % NAT_ENTRY_PER_BLOCK;
         //获取实际的设备块号
         block_addr = (pgoff_t) (new_nat_blkaddr +
                                 (seg_off << sbi->log_blocks_per_seg << 1) +
                                 (block_off & ((1 << sbi->log_blocks_per_seg) - 1)));
-        //读取dindirect node信息
-        ret = dev_read_block(nat_block, block_addr);
-        ASSERT(ret >= 0);
-        for(idx_entry = 0; idx_entry < NAT_ENTRY_PER_BLOCK; idx_entry++) {
-            if (indirect_node_bitmap[idx]) {
-                cur_nat_entry = (struct f2fs_nat_entry *) (nat_block + sizeof(struct f2fs_nat_entry) * nat_entry_off);
-                if (cur_nat_entry->block_addr != 0 && nid >= 3) {
+        //判断该nid是否为indirect node
+        if(indirect_node_bitmap[nid]){
+            //读取indirect node信息
+            ret = dev_read_block(nat_block, block_addr);
+            ASSERT(ret >= 0);
+            while(nat_entry_off >= 0 && nid >= 4){
+                //如果是indirect node
+                if(indirect_node_bitmap[nid]) {
+                    cur_nat_entry = (struct f2fs_nat_entry *) (nat_block +
+                                                               sizeof(struct f2fs_nat_entry) * nat_entry_off);
                     ret = dev_read_block(cur_node, cur_nat_entry->block_addr + offset);
                     ASSERT(ret >= 0);
-                    //获取indirect node的inode信息
-                    for(int idx1 = 0; idx1 < NIDS_PER_BLOCK; idx1++){
-                        //更新direct node bitmap信息
-                        if(cur_node->in.nid[idx1]){
+                    for (int idx1 = 0; idx1 < NIDS_PER_BLOCK; idx1++) {
+                        //更新indirect node bitmap信息
+                        if (cur_node->in.nid[idx1]) {
                             direct_node_bitmap[cur_node->in.nid[idx1]] = true;
                         }
                     }
                 }
+                nat_entry_off--;
+                nid--;
             }
-            idx++;
+        }
+        else{
+            nid--;
         }
     }
 
+
     //最后处理direct node
-    //最先处理dindirect node
-    for(idx = 0; idx < nm_i->max_nid; idx++){
+    for(nid = nm_i->max_nid - 1; nid >= 4;){
         //计算该inode在nat表中对应的块号
-        block_off = idx / NAT_ENTRY_PER_BLOCK;
+        block_off = nid / NAT_ENTRY_PER_BLOCK;
         //计算inode所在的segment号
         seg_off = block_off >> sbi->log_blocks_per_seg;
         //计算实际的enrty号
-        nat_entry_off = idx % NAT_ENTRY_PER_BLOCK;
+        nat_entry_off = nid % NAT_ENTRY_PER_BLOCK;
         //获取实际的设备块号
         block_addr = (pgoff_t) (new_nat_blkaddr +
                                 (seg_off << sbi->log_blocks_per_seg << 1) +
                                 (block_off & ((1 << sbi->log_blocks_per_seg) - 1)));
-        //读取dindirect node信息
-        ret = dev_read_block(nat_block, block_addr);
-        ASSERT(ret >= 0);
-
-        for(idx_entry = 0; idx_entry < NAT_ENTRY_PER_BLOCK; idx_entry++) {
-            if (direct_node_bitmap[idx]) {
-                cur_nat_entry = (struct f2fs_nat_entry *) (nat_block + sizeof(struct f2fs_nat_entry) * nat_entry_off);
-                if (cur_nat_entry->block_addr != 0 && nid >= 3) {
+        //判断该nid是否为direct node
+        if(direct_node_bitmap[nid]){
+            //读取direct node信息
+            ret = dev_read_block(nat_block, block_addr);
+            ASSERT(ret >= 0);
+            while(nat_entry_off >= 0 && nid >= 4){
+                //如果是direct node
+                if(direct_node_bitmap[nid]) {
+                    cur_nat_entry = (struct f2fs_nat_entry *) (nat_block +
+                                                               sizeof(struct f2fs_nat_entry) * nat_entry_off);
                     ret = dev_read_block(cur_node, cur_nat_entry->block_addr + offset);
                     ASSERT(ret >= 0);
-                    //修改direct node的inode信息
-                    for(int idx1 = 0; idx1 < NIDS_PER_BLOCK; idx1++){
-                        cur_node->dn.addr[idx1] -= offset;
+                    for (int idx1 = 0; idx1 < DEF_ADDRS_PER_BLOCK ; idx1++) {
+                        //更新direct node addr信息
+                        if (cur_node->dn.addr[idx1]) {
+                            cur_node->dn.addr[idx1] -= offset;
+                        }
                     }
+
+                    ret = dev_write_block(cur_node, cur_nat_entry->block_addr + offset);
+                    ASSERT(ret >= 0);
                 }
+                nat_entry_off--;
+                nid--;
             }
-            idx++;
         }
-        //刷回新数据
-        ret = dev_write_block(nat_block, block_addr);
-        ASSERT(ret >= 0);
+        else{
+            nid--;
+        }
     }
 
     /* zero out newly assigned nids */
