@@ -973,8 +973,10 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
                             if (cur_node->i.i_addr[inode_addr] == 0) {
                                 continue;
                             }
-                            cur_node->i.i_addr[inode_addr] = cur_node->i.i_addr[inode_addr] - offset;
+                            cur_node->i.i_addr[inode_addr] -= offset;
                         }
+                        if(cur_node->i.i_ext.blk_addr)
+                            cur_node->i.i_ext.blk_addr -= offset;
                         //如果下层有direct node，同样也需要修改地址
                         for(idx = 0 ; idx < 5 ; idx++){
                             nid_t i_nid = le32_to_cpu(cur_node->i.i_nid[idx]);
