@@ -969,7 +969,7 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
                     }
                     else {
                         //如果不是inline数据类型的数据node，i_addrblk需要修改
-                        for (inode_addr = 0; inode_addr < ADDRS_PER_INODE(cur_node); inode_addr++) {
+                        for (inode_addr = 0; inode_addr < DEF_ADDRS_PER_INODE; inode_addr++) {
                             if (cur_node->i.i_addr[inode_addr] == NULL_ADDR || cur_node->i.i_addr[inode_addr] == NEW_ADDR) {
                                 continue;
                             }
