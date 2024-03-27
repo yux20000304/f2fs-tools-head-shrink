@@ -975,7 +975,7 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
                             }
                             cur_node->i.i_addr[inode_addr] -= offset;
                         }
-                        if(cur_node->i.i_ext.blk_addr != NULL_ADDR && cur_node->i.i_ext.blk_addr != NEW_ADDR) {
+                        if(cur_node->i.i_ext.blk_addr) {
                             cur_node->i.i_ext.blk_addr -= offset;
                         }
                         //如果下层有direct node，同样也需要修改地址
@@ -1042,7 +1042,7 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
                     ASSERT(ret >= 0);
                     for (int idx1 = 0; idx1 < NIDS_PER_BLOCK; idx1++) {
                         //更新indirect node bitmap信息
-                        if (cur_node->in.nid[idx1] != NULL_ADDR && cur_node->in.nid[idx1] != NEW_ADDR) {
+                        if (cur_node->in.nid[idx1]) {
                             indirect_node_bitmap[cur_node->in.nid[idx1]] = true;
                         }
                     }
@@ -1082,7 +1082,7 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
                     ASSERT(ret >= 0);
                     for (int idx1 = 0; idx1 < NIDS_PER_BLOCK; idx1++) {
                         //更新indirect node bitmap信息
-                        if (cur_node->in.nid[idx1] != NULL_ADDR && cur_node->in.nid[idx1] != NEW_ADDR) {
+                        if (cur_node->in.nid[idx1]) {
                             direct_node_bitmap[cur_node->in.nid[idx1]] = true;
                         }
                     }
@@ -1095,7 +1095,6 @@ static void migrate_nat_head(struct f2fs_sb_info *sbi, struct f2fs_super_block *
             nid--;
         }
     }
-
 
     //最后处理direct node
     for(nid = nm_i->max_nid - 1; nid >= 4;){
